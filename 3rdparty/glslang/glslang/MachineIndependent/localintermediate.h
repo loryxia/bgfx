@@ -162,7 +162,10 @@ struct TXfbBuffer {
 #endif
 
 // Track a set of strings describing how the module was processed.
-// Using the form:
+// This includes command line options, transforms, etc., ideally inclusive enough
+// to reproduce the steps used to transform the input source to the output.
+// E.g., see SPIR-V OpModuleProcessed.
+// Each "process" or "transform" uses is expressed in the form:
 //   process arg0 arg1 arg2 ...
 //   process arg0 arg1 arg2 ...
 // where everything is textual, and there can be zero or more arguments
@@ -222,6 +225,15 @@ enum ComputeDerivativeMode {
     LayoutDerivativeGroupLinear,  // derivative_group_linearNV
 };
 
+class TIdMaps {
+public:
+    TMap<TString, int>& operator[](int i) { return maps[i]; }
+    const TMap<TString, int>& operator[](int i) const { return maps[i]; }
+private:
+    TMap<TString, int> maps[EsiCount];
+};
+
+
 //
 // Set of helper functions to help parse and build the tree.
 //
@@ -229,10 +241,6 @@ class TIntermediate {
 public:
     explicit TIntermediate(EShLanguage l, int v = 0, EProfile p = ENoProfile) :
         language(l),
-#ifdef ENABLE_HLSL
-        implicitThisName("@this"), implicitCounterName("@count"),
-        source(EShSourceNone),
-#endif
         profile(p), version(v), treeRoot(0),
         numEntryPoints(0), numErrors(0), numPushConstants(0), recursive(false),
         invertY(false),
@@ -241,17 +249,19 @@ public:
         depthReplacing(false)
 #ifndef GLSLANG_WEB
         ,
+        implicitThisName("@this"), implicitCounterName("@count"),
+        source(EShSourceNone),
         useVulkanMemoryModel(false),
         invocations(TQualifier::layoutNotSet), vertices(TQualifier::layoutNotSet),
         inputPrimitive(ElgNone), outputPrimitive(ElgNone),
         pixelCenterInteger(false), originUpperLeft(false),
         vertexSpacing(EvsNone), vertexOrder(EvoNone), interlockOrdering(EioNone), pointMode(false), earlyFragmentTests(false),
-        postDepthCoverage(false), depthLayout(EldNone), 
+        postDepthCoverage(false), depthLayout(EldNone),
         hlslFunctionality1(false),
         blendEquations(0), xfbMode(false), multiStream(false),
         layoutOverrideCoverage(false),
         geoPassthroughEXT(false),
-        numShaderRecordNVBlocks(0),
+        numShaderRecordBlocks(0),
         computeDerivativeMode(LayoutDerivativeNone),
         primitives(TQualifier::layoutNotSet),
         numTaskNVBlocks(0),
@@ -333,6 +343,9 @@ public:
             break;
         case EShTargetVulkan_1_1:
             processes.addProcess("target-env vulkan1.1");
+            break;
+        case EShTargetVulkan_1_2:
+            processes.addProcess("target-env vulkan1.2");
             break;
         default:
             processes.addProcess("target-env vulkanUnknown");
@@ -502,7 +515,7 @@ public:
     bool getAutoMapBindings() const { return false; }
     bool getAutoMapLocations() const { return false; }
     int getNumPushConstants() const { return 0; }
-    void addShaderRecordNVCount() { }
+    void addShaderRecordCount() { }
     void addTaskNVCount() { }
     void setUseVulkanMemoryModel() { }
     bool usingVulkanMemoryModel() const { return false; }
@@ -582,7 +595,7 @@ public:
             processes.addProcess("flatten-uniform-arrays");
     }
     bool getFlattenUniformArrays() const { return flattenUniformArrays; }
-#endif 
+#endif
     void setNoStorageFormat(bool b)
     {
         useUnknownFormat = b;
@@ -619,7 +632,7 @@ public:
 
     void setTextureSamplerTransformMode(EShTextureSamplerTransformMode mode) { textureSamplerTransformMode = mode; }
     int getNumPushConstants() const { return numPushConstants; }
-    void addShaderRecordNVCount() { ++numShaderRecordNVBlocks; }
+    void addShaderRecordCount() { ++numShaderRecordBlocks; }
     void addTaskNVCount() { ++numTaskNVBlocks; }
 
     bool setInvocations(int i)
@@ -858,8 +871,8 @@ protected:
     void mergeCallGraphs(TInfoSink&, TIntermediate&);
     void mergeModes(TInfoSink&, TIntermediate&);
     void mergeTrees(TInfoSink&, TIntermediate&);
-    void seedIdMap(TMap<TString, int>& idMap, int& maxId);
-    void remapIds(const TMap<TString, int>& idMap, int idShift, TIntermediate&);
+    void seedIdMap(TIdMaps& idMaps, int& maxId);
+    void remapIds(const TIdMaps& idMaps, int idShift, TIntermediate&);
     void mergeBodies(TInfoSink&, TIntermSequence& globals, const TIntermSequence& unitGlobals);
     void mergeLinkerObjects(TInfoSink&, TIntermSequence& linkerObjects, const TIntermSequence& unitLinkerObjects);
     void mergeImplicitArraySizes(TType&, const TType&);
@@ -895,13 +908,6 @@ protected:
     static const char* getResourceName(TResourceType);
 
     const EShLanguage language;  // stage, known at construction time
-#ifdef ENABLE_HLSL
-public:
-    const char* const implicitThisName;
-    const char* const implicitCounterName;
-protected:
-    EShSource source;            // source language, known a bit later
-#endif
     std::string entryPointName;
     std::string entryPointMangledName;
     typedef std::list<TCall> TGraph;
@@ -925,6 +931,11 @@ protected:
     bool localSizeNotDefault[3];
     int localSizeSpecId[3];
 #ifndef GLSLANG_WEB
+public:
+    const char* const implicitThisName;
+    const char* const implicitCounterName;
+protected:
+    EShSource source;            // source language, known a bit later
     bool useVulkanMemoryModel;
     int invocations;
     int vertices;
@@ -946,7 +957,7 @@ protected:
     bool multiStream;
     bool layoutOverrideCoverage;
     bool geoPassthroughEXT;
-    int numShaderRecordNVBlocks;
+    int numShaderRecordBlocks;
     ComputeDerivativeMode computeDerivativeMode;
     int primitives;
     int numTaskNVBlocks;
