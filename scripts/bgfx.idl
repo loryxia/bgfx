@@ -1,7 +1,7 @@
 -- vim: syntax=lua
 -- bgfx interface
 
-version(105)
+version(109)
 
 typedef "bool"
 typedef "char"
@@ -342,7 +342,6 @@ flag.ResetMsaa { bits = 32, shift = 4, range = 3, base = 1 }
 	.X16 --- Enable 16x MSAA.
 	()
 
-
 flag.Reset { bits = 32 }
 	.None             ( 0) --- No reset flags.
 	.Fullscreen       ( 1) --- Not supported yet.
@@ -350,7 +349,7 @@ flag.Reset { bits = 32 }
 	.Maxanisotropy    ( 9) --- Turn on/off max anisotropy.
 	.Capture          (10) --- Begin screen capture.
 	.FlushAfterRender (14) --- Flush rendering after submitting to GPU.
-	.FlipAfterRender  (15) --- This flag specifies where flip occurs. Default behavior is that flip occurs
+	.FlipAfterRender  (15) --- This flag specifies where flip occurs. Default behaviour is that flip occurs
 	                       --- before rendering new frame. This flag only has effect when `BGFX_CONFIG_MULTITHREADED=0`.
 	.SrgbBackbuffer   (16) --- Enable sRGB backbuffer.
 	.Hdr10            (17) --- Enable HDR10 rendering.
@@ -372,7 +371,7 @@ flag.Caps { bits = 64, base = 1, name = "Caps" }
 	.DrawIndirect           --- Draw indirect is supported.
 	.FragmentDepth          --- Fragment depth is accessible in fragment shader.
 	.FragmentOrdering       --- Fragment ordering is available in fragment shader.
-	.FramebufferRw          --- Read/Write frame buffer attachments are supported.
+	.ImageRw                --- Image Read/Write is supported.
 	.GraphicsDebugger       --- Graphics debugger is present.
 	.Reserved
 	.Hdr10                  --- HDR10 rendering is supported.
@@ -396,7 +395,7 @@ flag.Caps { bits = 64, base = 1, name = "Caps" }
 	.TextureCompareAll { "TextureCompareReserved", "TextureCompareLequal" } --- All texture compare modes are supported.
 	()
 
-flag.CapsFormat { bits = 16 }
+flag.CapsFormat { bits = 32 }
 	.TextureNone             --- Texture format is not supported.
 	.Texture_2d              --- Texture format is supported.
 	.Texture_2dSrgb          --- Texture as sRGB format is supported.
@@ -408,7 +407,8 @@ flag.CapsFormat { bits = 16 }
 	.TextureCubeSrgb         --- Texture as sRGB format is supported.
 	.TextureCubeEmulated     --- Texture format is emulated.
 	.TextureVertex           --- Texture format can be used from vertex shader.
-	.TextureImage            --- Texture format can be used as image from compute shader.
+	.TextureImageRead        --- Texture format can be used as image and read from.
+	.TextureImageWrite       --- Texture format can be used as image and written to.
 	.TextureFramebuffer      --- Texture format can be used as frame buffer.
 	.TextureFramebufferMsaa  --- Texture format can be used as MSAA frame buffer.
 	.TextureMsaa             --- Texture can be sampled as MSAA.
@@ -458,6 +458,7 @@ enum.RendererType { comment = "Renderer types:" }
 	.OpenGLES   --- OpenGL ES 2.0+
 	.OpenGL     --- OpenGL 2.1+
 	.Vulkan     --- Vulkan
+	.WebGPU     --- WebGPU
 	()
 
 --- Access mode enum.
@@ -699,6 +700,7 @@ struct.Limits  { namespace = "Caps" }
 	.maxUniforms             "uint32_t"    --- Maximum number of uniform handles.
 	.maxOcclusionQueries     "uint32_t"    --- Maximum number of occlusion query handles.
 	.maxEncoders             "uint32_t"    --- Maximum number of encoder threads.
+	.minResourceCbSize       "uint32_t"    --- Minimum resource command buffer size.
 	.transientVbSize         "uint32_t"    --- Maximum transient vertex buffer size.
 	.transientIbSize         "uint32_t"    --- Maximum transient index buffer size.
 
@@ -727,8 +729,10 @@ struct.Caps
 		---   - `BGFX_CAPS_FORMAT_TEXTURE_CUBE_SRGB` - Texture as sRGB format is supported.
 		---   - `BGFX_CAPS_FORMAT_TEXTURE_CUBE_EMULATED` - Texture format is emulated.
 		---   - `BGFX_CAPS_FORMAT_TEXTURE_VERTEX` - Texture format can be used from vertex shader.
-		---   - `BGFX_CAPS_FORMAT_TEXTURE_IMAGE` - Texture format can be used as image from compute
-		---     shader.
+		---   - `BGFX_CAPS_FORMAT_TEXTURE_IMAGE_READ` - Texture format can be used as image
+		---     and read from.
+		---   - `BGFX_CAPS_FORMAT_TEXTURE_IMAGE_WRITE` - Texture format can be used as image
+		---     and written to.
 		---   - `BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER` - Texture format can be used as frame
 		---     buffer.
 		---   - `BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER_MSAA` - Texture format can be used as MSAA
@@ -764,9 +768,10 @@ struct.Resolution { ctor }
 
 --- Configurable runtime limits parameters.
 struct.Limits { namespace = "Init" }
-	.maxEncoders    "uint16_t"             --- Maximum number of encoder threads.
-	.transientVbSize "uint32_t"            --- Maximum transient vertex buffer size.
-	.transientIbSize "uint32_t"            --- Maximum transient index buffer size.
+	.maxEncoders       "uint16_t" --- Maximum number of encoder threads.
+	.minResourceCbSize "uint32_t" --- Minimum resource command buffer size.
+	.transientVbSize   "uint32_t" --- Maximum transient vertex buffer size.
+	.transientIbSize   "uint32_t" --- Maximum transient index buffer size.
 
 --- Initialization parameters used by `bgfx::init`.
 struct.Init { ctor }
@@ -1060,14 +1065,15 @@ func.vertexConvert
 
 --- Weld vertices.
 func.weldVertices
-	"uint16_t"                     --- Number of unique vertices after vertex welding.
-	.output          "uint16_t*"    --- Welded vertices remapping table. The size of buffer
-	                               --- must be the same as number of vertices.
-	.layout			"const VertexLayout &"     --- Vertex stream layout.
-	.data            "const void*"            --- Vertex stream.
-	.num             "uint16_t"               --- Number of vertices in vertex stream.
-	.epsilon         "float"                  --- Error tolerance for vertex position comparison.
-	 { default = "0.001f" }
+	"uint32_t"                              --- Number of unique vertices after vertex welding.
+	.output          "void*"                --- Welded vertices remapping table. The size of buffer
+	                                        --- must be the same as number of vertices.
+	.layout          "const VertexLayout &" --- Vertex stream layout.
+	.data            "const void*"          --- Vertex stream.
+	.num             "uint32_t"             --- Number of vertices in vertex stream.
+	.index32         "bool"                 --- Set to `true` if input indices are 32-bit.
+	.epsilon         "float"                --- Error tolerance for vertex position comparison.
+	 { default = "0.001f"                   }
 
 --- Convert index buffer for use with different primitive topologies.
 func.topologyConvert
@@ -1144,7 +1150,7 @@ func.reset
 	                                 ---   - `BGFX_RESET_CAPTURE` - Begin screen capture.
 	                                 ---   - `BGFX_RESET_FLUSH_AFTER_RENDER` - Flush rendering after submitting to GPU.
 	                                 ---   - `BGFX_RESET_FLIP_AFTER_RENDER` - This flag  specifies where flip
-	                                 ---     occurs. Default behavior is that flip occurs before rendering new
+	                                 ---     occurs. Default behaviour is that flip occurs before rendering new
 	                                 ---     frame. This flag only has effect when `BGFX_CONFIG_MULTITHREADED=0`.
 	                                 ---   - `BGFX_RESET_SRGB_BACKBUFFER` - Enable sRGB backbuffer.
 	.format "TextureFormat::Enum"    --- Texture format. See: `TextureFormat::Enum`.
@@ -2076,6 +2082,11 @@ func.setViewOrder
 	                       --- to default state.
 	 { default = NULL }
 
+--- Reset all view settings to default.
+func.resetView
+	"void"
+	.id "ViewId" -- _id View id.
+
 --- Begin submitting draw calls from thread.
 func.begin { cname = "encoder_begin" }
 	"Encoder*"        --- Encoder.
@@ -2232,7 +2243,15 @@ func.Encoder.setVertexBuffer { cpponly }
 	.handle      "VertexBufferHandle" --- Vertex buffer.
 
 --- Set vertex buffer for draw primitive.
-func.Encoder.setVertexBuffer
+func.Encoder.setVertexBuffer { conly }
+	"void"
+	.stream       "uint8_t"            --- Vertex stream.
+	.handle       "VertexBufferHandle" --- Vertex buffer.
+	.startVertex  "uint32_t"           --- First vertex to render.
+	.numVertices  "uint32_t"           --- Number of vertices to render.
+
+--- Set vertex buffer for draw primitive.
+func.Encoder.setVertexBuffer { cname = "set_vertex_buffer_with_layout" }
 	"void"
 	.stream       "uint8_t"            --- Vertex stream.
 	.handle       "VertexBufferHandle" --- Vertex buffer.
@@ -2250,7 +2269,14 @@ func.Encoder.setVertexBuffer { cpponly }
 	.handle      "DynamicVertexBufferHandle" --- Dynamic vertex buffer.
 
 --- Set vertex buffer for draw primitive.
-func.Encoder.setVertexBuffer { cname = "set_dynamic_vertex_buffer" }
+func.Encoder.setVertexBuffer { conly, cname = "set_dynamic_vertex_buffer" }
+	"void"
+	.stream       "uint8_t"                   --- Vertex stream.
+	.handle       "DynamicVertexBufferHandle" --- Dynamic vertex buffer.
+	.startVertex  "uint32_t"                  --- First vertex to render.
+	.numVertices  "uint32_t"                  --- Number of vertices to render.
+
+func.Encoder.setVertexBuffer { cname = "set_dynamic_vertex_buffer_with_layout" }
 	"void"
 	.stream       "uint8_t"                   --- Vertex stream.
 	.handle       "DynamicVertexBufferHandle" --- Dynamic vertex buffer.
@@ -2268,7 +2294,15 @@ func.Encoder.setVertexBuffer { cpponly }
 	.tvb         "const TransientVertexBuffer*" --- Transient vertex buffer.
 
 --- Set vertex buffer for draw primitive.
-func.Encoder.setVertexBuffer { cname = "set_transient_vertex_buffer" }
+func.Encoder.setVertexBuffer { conly, cname = "set_transient_vertex_buffer" }
+	"void"
+	.stream       "uint8_t"                      --- Vertex stream.
+	.tvb          "const TransientVertexBuffer*" --- Transient vertex buffer.
+	.startVertex  "uint32_t"                     --- First vertex to render.
+	.numVertices  "uint32_t"                     --- Number of vertices to render.
+
+--- Set vertex buffer for draw primitive.
+func.Encoder.setVertexBuffer { cname = "set_transient_vertex_buffer_with_layout" }
 	"void"
 	.stream       "uint8_t"                      --- Vertex stream.
 	.tvb          "const TransientVertexBuffer*" --- Transient vertex buffer.
@@ -2762,12 +2796,24 @@ func.setVertexBuffer { cpponly }
 	.handle      "VertexBufferHandle" --- Vertex buffer.
 
 --- Set vertex buffer for draw primitive.
-func.setVertexBuffer
+func.setVertexBuffer { conly }
 	"void"
-	.stream      "uint8_t"            --- Vertex stream.
-	.handle      "VertexBufferHandle" --- Vertex buffer.
-	.startVertex "uint32_t"           --- First vertex to render.
-	.numVertices "uint32_t"           --- Number of vertices to render.
+	.stream      "uint8_t"                   --- Vertex stream.
+	.handle      "VertexBufferHandle"        --- Vertex buffer.
+	.startVertex "uint32_t"                  --- First vertex to render.
+	.numVertices "uint32_t"                  --- Number of vertices to render.
+
+--- Set vertex buffer for draw primitive.
+func.setVertexBuffer { cname = "set_vertex_buffer_with_layout" }
+	"void"
+	.stream      "uint8_t"                   --- Vertex stream.
+	.handle      "VertexBufferHandle"        --- Vertex buffer.
+	.startVertex "uint32_t"                  --- First vertex to render.
+	.numVertices "uint32_t"                  --- Number of vertices to render.
+	.layoutHandle "VertexLayoutHandle"       --- Vertex layout for aliasing vertex buffer. If invalid
+	                                         --- handle is used, vertex layout used for creation
+	                                         --- of vertex buffer will be used.
+	 { default = "BGFX_INVALID_HANDLE" }
 
 --- Set vertex buffer for draw primitive.
 func.setVertexBuffer { cpponly }
@@ -2776,7 +2822,7 @@ func.setVertexBuffer { cpponly }
 	.handle      "DynamicVertexBufferHandle" --- Dynamic vertex buffer.
 
 --- Set vertex buffer for draw primitive.
-func.setVertexBuffer { cname = "set_dynamic_vertex_buffer" }
+func.setVertexBuffer { conly, cname = "set_dynamic_vertex_buffer" }
 	"void"
 	.stream      "uint8_t"                   --- Vertex stream.
 	.handle      "DynamicVertexBufferHandle" --- Dynamic vertex buffer.
@@ -2784,18 +2830,43 @@ func.setVertexBuffer { cname = "set_dynamic_vertex_buffer" }
 	.numVertices "uint32_t"                  --- Number of vertices to render.
 
 --- Set vertex buffer for draw primitive.
+func.setVertexBuffer { cname = "set_dynamic_vertex_buffer_with_layout" }
+	"void"
+	.stream      "uint8_t"                   --- Vertex stream.
+	.handle      "DynamicVertexBufferHandle" --- Dynamic vertex buffer.
+	.startVertex "uint32_t"                  --- First vertex to render.
+	.numVertices "uint32_t"                  --- Number of vertices to render.
+	.layoutHandle "VertexLayoutHandle"       --- Vertex layout for aliasing vertex buffer. If invalid
+	                                         --- handle is used, vertex layout used for creation
+	                                         --- of vertex buffer will be used.
+	 { default = "BGFX_INVALID_HANDLE" }
+
+
+--- Set vertex buffer for draw primitive.
 func.setVertexBuffer { cpponly }
 	"void"
 	.stream      "uint8_t"                      --- Vertex stream.
 	.tvb         "const TransientVertexBuffer*" --- Transient vertex buffer.
 
 --- Set vertex buffer for draw primitive.
-func.setVertexBuffer { cname = "set_transient_vertex_buffer" }
+func.setVertexBuffer { conly, cname = "set_transient_vertex_buffer" }
 	"void"
 	.stream      "uint8_t"                      --- Vertex stream.
 	.tvb         "const TransientVertexBuffer*" --- Transient vertex buffer.
 	.startVertex "uint32_t"                     --- First vertex to render.
 	.numVertices "uint32_t"                     --- Number of vertices to render.
+
+--- Set vertex buffer for draw primitive.
+func.setVertexBuffer { cname = "set_transient_vertex_buffer_with_layout" }
+	"void"
+	.stream      "uint8_t"                      --- Vertex stream.
+	.tvb         "const TransientVertexBuffer*" --- Transient vertex buffer.
+	.startVertex "uint32_t"                     --- First vertex to render.
+	.numVertices "uint32_t"                     --- Number of vertices to render.
+	.layoutHandle "VertexLayoutHandle"          --- Vertex layout for aliasing vertex buffer. If invalid
+	                                            --- handle is used, vertex layout used for creation
+	                                            --- of vertex buffer will be used.
+	 { default = "BGFX_INVALID_HANDLE" }
 
 --- Set number of vertices for auto generated vertices use in conjuction
 --- with gl_VertexID.
