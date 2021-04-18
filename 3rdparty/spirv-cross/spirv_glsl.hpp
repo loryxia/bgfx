@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 Arm Limited
+ * Copyright 2015-2021 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -568,6 +568,7 @@ protected:
 		bool support_case_fallthrough = true;
 		bool use_array_constructor = false;
 		bool needs_row_major_load_workaround = false;
+		bool support_pointer_to_pointer = false;
 	} backend;
 
 	void emit_struct(SPIRType &type);
@@ -701,6 +702,8 @@ protected:
 	std::string to_pointer_expression(uint32_t id, bool register_expression_read = true);
 	std::string to_enclosed_pointer_expression(uint32_t id, bool register_expression_read = true);
 	std::string to_extract_component_expression(uint32_t id, uint32_t index);
+	std::string to_extract_constant_composite_expression(uint32_t result_type, const SPIRConstant &c,
+	                                                     const uint32_t *chain, uint32_t length);
 	std::string enclose_expression(const std::string &expr);
 	std::string dereference_expression(const SPIRType &expression_type, const std::string &expr);
 	std::string address_of_expression(const std::string &expr);
@@ -711,6 +714,8 @@ protected:
 	std::string type_to_glsl_constructor(const SPIRType &type);
 	std::string argument_decl(const SPIRFunction::Parameter &arg);
 	virtual std::string to_qualifiers_glsl(uint32_t id);
+	void fixup_io_block_patch_qualifiers(const SPIRVariable &var);
+	void emit_output_variable_initializer(const SPIRVariable &var);
 	const char *to_precision_qualifiers_glsl(uint32_t id);
 	virtual const char *to_storage_qualifiers_glsl(const SPIRVariable &var);
 	const char *flags_to_qualifiers_glsl(const SPIRType &type, const Bitset &flags);
@@ -815,6 +820,8 @@ protected:
 	bool requires_transpose_2x2 = false;
 	bool requires_transpose_3x3 = false;
 	bool requires_transpose_4x4 = false;
+	bool ray_tracing_is_khr = false;
+	void ray_tracing_khr_fixup_locations();
 
 	bool args_will_forward(uint32_t id, const uint32_t *args, uint32_t num_args, bool pure);
 	void register_call_out_argument(uint32_t id);
@@ -873,6 +880,7 @@ protected:
 	virtual void cast_to_builtin_store(uint32_t target_id, std::string &expr, const SPIRType &expr_type);
 	virtual void cast_from_builtin_load(uint32_t source_id, std::string &expr, const SPIRType &expr_type);
 	void unroll_array_from_complex_load(uint32_t target_id, uint32_t source_id, std::string &expr);
+	bool unroll_array_to_complex_store(uint32_t target_id, uint32_t source_id);
 	void convert_non_uniform_expression(const SPIRType &type, std::string &expr);
 
 	void handle_store_to_invariant_variable(uint32_t store_id, uint32_t value_id);

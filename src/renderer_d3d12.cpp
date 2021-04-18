@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2020 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2021 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -954,7 +954,7 @@ namespace bgfx { namespace d3d12
 				m_scd.alphaMode  = DXGI_ALPHA_MODE_IGNORE;
 				m_scd.flags      = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-				m_scd.maxFrameLatency = bx::min<uint8_t>(_init.resolution.maxFrameLatency, 3);
+				m_scd.maxFrameLatency = bx::min<uint8_t>(_init.resolution.maxFrameLatency, BGFX_CONFIG_MAX_FRAME_LATENCY);
 				m_scd.nwh             = g_platformData.nwh;
 				m_scd.ndt             = g_platformData.ndt;
 				m_scd.windowed        = true;
@@ -2851,6 +2851,7 @@ namespace bgfx { namespace d3d12
 				| BGFX_STATE_BLEND_INDEPENDENT
 				| BGFX_STATE_BLEND_ALPHA_TO_COVERAGE
 				| BGFX_STATE_CULL_MASK
+				| BGFX_STATE_FRONT_CCW
 				| BGFX_STATE_MSAA
 				| BGFX_STATE_LINEAA
 				| BGFX_STATE_CONSERVATIVE_RASTER

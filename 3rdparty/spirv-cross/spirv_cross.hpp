@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 Arm Limited
+ * Copyright 2015-2021 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -498,6 +498,12 @@ public:
 	// The most common use here is to check if a buffer is readonly or writeonly.
 	Bitset get_buffer_block_flags(VariableID id) const;
 
+	// Returns whether the position output is invariant
+	bool is_position_invariant() const
+	{
+		return position_invariant;
+	}
+
 protected:
 	const uint32_t *stream(const Instruction &instr) const
 	{
@@ -507,9 +513,18 @@ protected:
 		if (!instr.length)
 			return nullptr;
 
-		if (instr.offset + instr.length > ir.spirv.size())
-			SPIRV_CROSS_THROW("Compiler::stream() out of range.");
-		return &ir.spirv[instr.offset];
+		if (instr.is_embedded())
+		{
+			auto &embedded = static_cast<const EmbeddedInstruction &>(instr);
+			assert(embedded.ops.size() == instr.length);
+			return embedded.ops.data();
+		}
+		else
+		{
+			if (instr.offset + instr.length > ir.spirv.size())
+				SPIRV_CROSS_THROW("Compiler::stream() out of range.");
+			return &ir.spirv[instr.offset];
+		}
 	}
 
 	ParsedIR ir;
@@ -833,6 +848,9 @@ protected:
 		Compiler &compiler;
 
 		void handle_builtin(const SPIRType &type, spv::BuiltIn builtin, const Bitset &decoration_flags);
+		void add_if_builtin(uint32_t id);
+		void add_if_builtin_or_block(uint32_t id);
+		void add_if_builtin(uint32_t id, bool allow_blocks);
 	};
 
 	bool traverse_all_reachable_opcodes(const SPIRBlock &block, OpcodeHandler &handler) const;

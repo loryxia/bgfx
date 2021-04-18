@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2020 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2021 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -431,6 +431,11 @@ BGFX_C_API void bgfx_destroy_program(bgfx_program_handle_t _handle)
 BGFX_C_API bool bgfx_is_texture_valid(uint16_t _depth, bool _cubeMap, uint16_t _numLayers, bgfx_texture_format_t _format, uint64_t _flags)
 {
 	return bgfx::isTextureValid(_depth, _cubeMap, _numLayers, (bgfx::TextureFormat::Enum)_format, _flags);
+}
+
+BGFX_C_API bool bgfx_is_frame_buffer_valid(uint8_t _num, const bgfx_attachment_t* _attachment)
+{
+	return bgfx::isFrameBufferValid(_num, (const bgfx::Attachment*)_attachment);
 }
 
 BGFX_C_API void bgfx_calc_texture_size(bgfx_texture_info_t * _info, uint16_t _width, uint16_t _height, uint16_t _depth, bool _cubeMap, bool _hasMips, uint16_t _numLayers, bgfx_texture_format_t _format)
@@ -1316,6 +1321,7 @@ BGFX_C_API bgfx_interface_vtbl_t* bgfx_get_interface(uint32_t _version)
 			bgfx_create_compute_program,
 			bgfx_destroy_program,
 			bgfx_is_texture_valid,
+			bgfx_is_frame_buffer_valid,
 			bgfx_calc_texture_size,
 			bgfx_create_texture,
 			bgfx_create_texture_2d,

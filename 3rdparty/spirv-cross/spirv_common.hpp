@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 Arm Limited
+ * Copyright 2015-2021 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -302,8 +302,20 @@ struct Instruction
 {
 	uint16_t op = 0;
 	uint16_t count = 0;
+	// If offset is 0 (not a valid offset into the instruction stream),
+	// we have an instruction stream which is embedded in the object.
 	uint32_t offset = 0;
 	uint32_t length = 0;
+
+	inline bool is_embedded() const
+	{
+		return offset == 0;
+	}
+};
+
+struct EmbeddedInstruction : Instruction
+{
+	SmallVector<uint32_t> ops;
 };
 
 enum Types
@@ -729,7 +741,9 @@ struct SPIRBlock : IVariant
 
 		Return, // Block ends with return.
 		Unreachable, // Noop
-		Kill // Discard
+		Kill, // Discard
+		IgnoreIntersection, // Ray Tracing
+		TerminateRay // Ray Tracing
 	};
 
 	enum Merge

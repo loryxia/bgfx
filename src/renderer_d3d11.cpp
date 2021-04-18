@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2020 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2021 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -1035,7 +1035,7 @@ namespace bgfx { namespace d3d11
 					m_scd.alphaMode  = DXGI_ALPHA_MODE_IGNORE;
 					m_scd.flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-					m_scd.maxFrameLatency = bx::min<uint8_t>(_init.resolution.maxFrameLatency, 3);
+					m_scd.maxFrameLatency = bx::min<uint8_t>(_init.resolution.maxFrameLatency, BGFX_CONFIG_MAX_FRAME_LATENCY);
 					m_scd.nwh             = g_platformData.nwh;
 					m_scd.ndt             = g_platformData.ndt;
 					m_scd.windowed        = true;
@@ -1594,6 +1594,10 @@ namespace bgfx { namespace d3d11
 				DX_RELEASE(m_annotation, 1);
 				DX_RELEASE_W(m_infoQueue, 0);
 				DX_RELEASE(m_msaaRt, 0);
+#if BX_PLATFORM_WINRT
+				// Remove swap chain from SwapChainPanel (nwh) if applicable
+				m_dxgi.removeSwapChain(m_scd, &m_swapChain);
+#endif
 				DX_RELEASE(m_swapChain, 0);
 				DX_RELEASE(m_deviceCtx, 0);
 				DX_RELEASE(m_device, 0);
@@ -1681,6 +1685,10 @@ namespace bgfx { namespace d3d11
 			DX_RELEASE(m_annotation, 1);
 			DX_RELEASE_W(m_infoQueue, 0);
 			DX_RELEASE(m_msaaRt, 0);
+#if BX_PLATFORM_WINRT
+			// Remove swap chain from SwapChainPanel (nwh) if applicable
+			m_dxgi.removeSwapChain(m_scd, &m_swapChain);
+#endif
 			DX_RELEASE(m_swapChain, 0);
 			DX_RELEASE(m_deviceCtx, 0);
 			DX_RELEASE(m_device, 0);
@@ -2351,6 +2359,22 @@ namespace bgfx { namespace d3d11
 			}
 		}
 
+		void updateNativeWindow()
+		{
+#if BX_PLATFORM_WINRT
+			// SwapChainPanels can be dynamically updated
+			if (m_scd.ndt == reinterpret_cast<void*>(2)
+				&& (m_scd.nwh != g_platformData.nwh || m_scd.ndt != g_platformData.ndt))
+			{
+				// Remove swap chain from SwapChainPanel (nwh) if applicable
+				m_dxgi.removeSwapChain(m_scd, &m_swapChain);
+				// Update nwh after removing swap chain
+				m_scd.nwh = g_platformData.nwh;
+				m_scd.ndt = g_platformData.ndt;
+			}
+#endif
+		}
+
 		bool updateResolution(const Resolution& _resolution)
 		{
 			const bool suspended    = !!( _resolution.reset & BGFX_RESET_SUSPEND);
@@ -2456,8 +2480,11 @@ namespace bgfx { namespace d3d11
 						updateMsaa(m_scd.format);
 						m_scd.sampleDesc = s_msaa[(m_resolution.reset&BGFX_RESET_MSAA_MASK)>>BGFX_RESET_MSAA_SHIFT];
 
+#if BX_PLATFORM_WINRT
+						// Remove swap chain from SwapChainPanel (nwh) if applicable
+						m_dxgi.removeSwapChain(m_scd, &m_swapChain);
+#endif
 						DX_RELEASE(m_swapChain, 0);
-
 						HRESULT hr = m_dxgi.createSwapChain(m_device
 							, m_scd
 							, &m_swapChain
@@ -3032,50 +3059,54 @@ namespace bgfx { namespace d3d11
 		{
 			const uint32_t maxTextureSamplers = g_caps.limits.maxTextureSamplers;
 
+			ID3D11DeviceContext* deviceCtx = m_deviceCtx;
+
 			// vertex texture fetch not supported on 9_1 through 9_3
 			if (m_featureLevel > D3D_FEATURE_LEVEL_9_3)
 			{
-					m_deviceCtx->VSSetShaderResources(0, maxTextureSamplers, s_zero.m_srv);
-					m_deviceCtx->VSSetSamplers(0, maxTextureSamplers, s_zero.m_sampler);
+				deviceCtx->VSSetShaderResources(0, maxTextureSamplers, s_zero.m_srv);
+				deviceCtx->VSSetSamplers(0, maxTextureSamplers, s_zero.m_sampler);
 			}
 
 			if (m_featureLevel > D3D_FEATURE_LEVEL_11_0)
 			{
-					m_deviceCtx->OMSetRenderTargetsAndUnorderedAccessViews(
-						D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL
-						, NULL
-						, NULL
-						, 16
-						, maxTextureSamplers
-						, s_zero.m_uav
-						, NULL
+				deviceCtx->OMSetRenderTargetsAndUnorderedAccessViews(
+					  D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL
+					, NULL
+					, NULL
+					, 16
+					, maxTextureSamplers
+					, s_zero.m_uav
+					, NULL
 					);
 			}
 
-			m_deviceCtx->PSSetShaderResources(0, maxTextureSamplers, s_zero.m_srv);
-			m_deviceCtx->PSSetSamplers(0, maxTextureSamplers, s_zero.m_sampler);
+			deviceCtx->PSSetShaderResources(0, maxTextureSamplers, s_zero.m_srv);
+			deviceCtx->PSSetSamplers(0, maxTextureSamplers, s_zero.m_sampler);
 		}
 
 		void commitTextureStage()
 		{
-			if (BX_ENABLED(BGFX_CONFIG_DEBUG))
+			if (BX_ENABLED(BGFX_CONFIG_DEBUG) )
 			{
 				quietValidation();
 			}
 
 			const uint32_t maxTextureSamplers = g_caps.limits.maxTextureSamplers;
 
+			ID3D11DeviceContext* deviceCtx = m_deviceCtx;
+
 			// vertex texture fetch not supported on 9_1 through 9_3
 			if (m_featureLevel > D3D_FEATURE_LEVEL_9_3)
 			{
-				m_deviceCtx->VSSetShaderResources(0, maxTextureSamplers, m_textureStage.m_srv);
-				m_deviceCtx->VSSetSamplers(0, maxTextureSamplers, m_textureStage.m_sampler);
+				deviceCtx->VSSetShaderResources(0, maxTextureSamplers, m_textureStage.m_srv);
+				deviceCtx->VSSetSamplers(0, maxTextureSamplers, m_textureStage.m_sampler);
 			}
 
 			if (m_featureLevel > D3D_FEATURE_LEVEL_11_0)
 			{
-				m_deviceCtx->OMSetRenderTargetsAndUnorderedAccessViews(
-					D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL
+				deviceCtx->OMSetRenderTargetsAndUnorderedAccessViews(
+					  D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL
 					, NULL
 					, NULL
 					, 16
@@ -3085,8 +3116,8 @@ namespace bgfx { namespace d3d11
 					);
 			}
 
-			m_deviceCtx->PSSetShaderResources(0, maxTextureSamplers, m_textureStage.m_srv);
-			m_deviceCtx->PSSetSamplers(0, maxTextureSamplers, m_textureStage.m_sampler);
+			deviceCtx->PSSetShaderResources(0, maxTextureSamplers, m_textureStage.m_srv);
+			deviceCtx->PSSetSamplers(0, maxTextureSamplers, m_textureStage.m_sampler);
 		}
 
 		void invalidateTextureStage()
@@ -5479,8 +5510,13 @@ namespace bgfx { namespace d3d11
 
 	void RendererContextD3D11::submit(Frame* _render, ClearQuad& _clearQuad, TextVideoMemBlitter& _textVideoMemBlitter)
 	{
-		if (m_lost
-		||  updateResolution(_render->m_resolution) )
+		if (m_lost)
+		{
+			return;
+		}
+
+		updateNativeWindow();
+		if (updateResolution(_render->m_resolution) )
 		{
 			return;
 		}
@@ -5524,6 +5560,8 @@ namespace bgfx { namespace d3d11
 		currentState.clear();
 		currentState.m_stateFlags = BGFX_STATE_NONE;
 		currentState.m_stencil = packStencil(BGFX_STENCIL_NONE, BGFX_STENCIL_NONE);
+
+		uint32_t currentNumVertices = 0;
 
 		RenderBind currentBind;
 		currentBind.clear();
@@ -6155,6 +6193,8 @@ namespace bgfx { namespace d3d11
 						}
 					}
 
+					currentNumVertices = numVertices;
+
 					if (0 < numStreams)
 					{
 						deviceCtx->IASetVertexBuffers(0, numStreams, buffers, strides, offsets);
@@ -6213,7 +6253,7 @@ namespace bgfx { namespace d3d11
 
 				if (0 != currentState.m_streamMask)
 				{
-					uint32_t numVertices       = draw.m_numVertices;
+					uint32_t numVertices       = currentNumVertices;
 					uint32_t numIndices        = 0;
 					uint32_t numPrimsSubmitted = 0;
 					uint32_t numInstances      = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2020 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2021 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -301,6 +301,20 @@ vec2 bgfxTextureSize(BgfxSampler2D _sampler, int _lod)
 	return result;
 }
 
+vec2 bgfxTextureSize(BgfxISampler2D _sampler, int _lod)
+{
+	vec2 result;
+	_sampler.m_texture.GetDimensions(result.x, result.y);
+	return result;
+}
+
+vec2 bgfxTextureSize(BgfxUSampler2D _sampler, int _lod)
+{
+	vec2 result;
+	_sampler.m_texture.GetDimensions(result.x, result.y);
+	return result;
+}
+
 vec4 bgfxTextureGather(BgfxSampler2D _sampler, vec2 _coord)
 {
 	return _sampler.m_texture.GatherRed(_sampler.m_sampler, _coord );
@@ -556,7 +570,7 @@ vec4  mod(vec4  _a, vec4  _b) { return _a - _b * floor(_a / _b); }
 #		define texture2D(_sampler, _coord)      texture(_sampler, _coord)
 #		define texture2DArray(_sampler, _coord) texture(_sampler, _coord)
 #		define texture3D(_sampler, _coord)      texture(_sampler, _coord)
-#		define texture2DLod(_sampler, _coord_, _lod)               textureLod(_sampler, _coord, _lod)
+#		define texture2DLod(_sampler, _coord, _lod)                textureLod(_sampler, _coord, _lod)
 #		define texture2DLodOffset(_sampler, _coord, _lod, _offset) textureLodOffset(_sampler, _coord, _lod, _offset)
 #	endif // BGFX_SHADER_LANGUAGE_GLSL >= 130
 
