@@ -41,6 +41,7 @@ namespace entry
 	///
 	static void* sdlNativeWindowHandle(SDL_Window* _window)
 	{
+return _window;
 		SDL_SysWMinfo wmi;
 		SDL_VERSION(&wmi.version);
 		if (!SDL_GetWindowWMInfo(_window, &wmi) )
@@ -475,6 +476,7 @@ namespace entry
 							, m_height
 							, SDL_WINDOW_SHOWN
 							| SDL_WINDOW_RESIZABLE
+							| SDL_WINDOW_VULKAN
 							);
 
 			m_flags[0] = 0
