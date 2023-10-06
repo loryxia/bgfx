@@ -810,7 +810,7 @@ namespace bgfx { namespace mtl
 
 			if (NULL != m_dynamic)
 			{
-				BX_DELETE(g_allocator, m_dynamic);
+				bx::deleteObject(g_allocator, m_dynamic);
 				m_dynamic = NULL;
 			}
 		}
@@ -945,7 +945,7 @@ namespace bgfx { namespace mtl
 
 	void release(PipelineStateMtl* _ptr)
 	{
-		BX_DELETE(g_allocator, _ptr);
+		bx::deleteObject(g_allocator, _ptr);
 	}
 
 	struct TextureMtl
@@ -981,6 +981,7 @@ namespace bgfx { namespace mtl
 			if (0 == (m_flags & BGFX_SAMPLER_INTERNAL_SHARED))
 			{
 				MTL_RELEASE(m_ptr);
+				MTL_RELEASE(m_ptrMsaa);
 			}
 			MTL_RELEASE(m_ptrStencil);
 			for (uint32_t ii = 0; ii < m_numMips; ++ii)
@@ -1166,7 +1167,7 @@ namespace bgfx { namespace mtl
 		uint64_t m_elapsed;
 		uint64_t m_frequency;
 
-		Result m_result[4*2];
+		Result m_result[BGFX_CONFIG_MAX_VIEWS+1];
 		bx::RingBufferControl m_control;
 	};
 

@@ -49,29 +49,28 @@ Supported rendering backends:
 Supported platforms:
 
  * Android (14+, ARM, x86, MIPS)
- * FreeBSD
- * iOS (iPhone, iPad, AppleTV)
+ * iOS/iPadOS/tvOS (iPhone, iPad, AppleTV)
  * Linux
- * MIPS Creator CI20
- * OSX (10.12+)
+ * macOS (11+)
  * PlayStation 4
  * RaspberryPi
  * UWP (Universal Windows, Xbox One)
  * Wasm/Emscripten
- * Windows (XP, Vista, 7, 8, 10)
+ * Windows (7+)
 
 Supported compilers:
 
- * Clang 3.3 and above
- * GCC 5 and above
- * VS2017 and above
+ * Clang 11 and above
+ * GCC 8 and above
+ * VS2019 and above
+ * Apple clang 12 and above
 
 Languages:
 
  * [C/C++ API documentation](https://bkaradzic.github.io/bgfx/bgfx.html)
  * [Beef API bindings](https://github.com/bkaradzic/bgfx/tree/master/bindings/bf)
  * [C# language API bindings #1](https://github.com/bkaradzic/bgfx/tree/master/bindings/cs)
- * [D language API bindings](https://github.com/GoaLitiuM/bindbc-bgfx)
+ * [D language API bindings](https://github.com/BindBC/bindbc-bgfx)
  * [Go language API bindings](https://github.com/james4k/go-bgfx)
  * [Haskell language API bindings](https://github.com/haskell-game/bgfx)
  * [Lightweight Java Game Library 3 bindings](https://github.com/LWJGL/lwjgl3)
