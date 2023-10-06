@@ -281,6 +281,11 @@ namespace bgfx { namespace mtl
 			return [m_obj supportsFamily:_featureSet];
 		}
 
+        bool supportsFeatureSet(MTLFeatureSet _featureSet)
+        {
+            return [m_obj supportsFeatureSet:_featureSet];
+        }
+
 		id<MTLLibrary> newLibraryWithData(const void* _data)
 		{
 			NSError* error;

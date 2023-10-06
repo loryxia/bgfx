@@ -634,21 +634,21 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 			{
 				if (iOSVersionEqualOrGreater("9.0.0") )
 				{
-					g_caps.limits.maxTextureSize = m_device.supportsFamily( (MTLGPUFamily)4 /* iOS_GPUFamily3_v1 */) ? 16384 : 8192;
+					g_caps.limits.maxTextureSize = m_device.supportsFeatureSet( (MTLFeatureSet)4 /* iOS_GPUFamily3_v1 */) ? 16384 : 8192;
 				}
 				else
 				{
 					g_caps.limits.maxTextureSize = 4096;
 				}
 
-				g_caps.limits.maxFBAttachments = uint8_t(bx::uint32_min(m_device.supportsFamily( (MTLGPUFamily)1 /* MTLGPUFamily_iOS_GPUFamily2_v1 */) ? 8 : 4, BGFX_CONFIG_MAX_FRAME_BUFFER_ATTACHMENTS) );
+				g_caps.limits.maxFBAttachments = uint8_t(bx::uint32_min(m_device.supportsFeatureSet( (MTLFeatureSet)1 /* MTLFeatureSet_iOS_GPUFamily2_v1 */) ? 8 : 4, BGFX_CONFIG_MAX_FRAME_BUFFER_ATTACHMENTS) );
 
-				g_caps.supported |= m_device.supportsFamily( (MTLGPUFamily)4 /* MTLGPUFamily_iOS_GPUFamily3_v1 */)
+				g_caps.supported |= m_device.supportsFeatureSet( (MTLFeatureSet)4 /* MTLFeatureSet_iOS_GPUFamily3_v1 */)
 					? BGFX_CAPS_DRAW_INDIRECT
 					: 0
 					;
 
-				g_caps.supported |= m_device.supportsFamily( (MTLGPUFamily)11 /* MTLGPUFamily_iOS_GPUFamily4_v1 */)
+				g_caps.supported |= m_device.supportsFeatureSet( (MTLFeatureSet)11 /* MTLFeatureSet_iOS_GPUFamily4_v1 */)
 					? BGFX_CAPS_TEXTURE_CUBE_ARRAY
 					: 0
 					;
@@ -658,8 +658,8 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				g_caps.limits.maxTextureSize   = 16384;
 				g_caps.limits.maxFBAttachments = 8;
 				g_caps.supported |= BGFX_CAPS_TEXTURE_CUBE_ARRAY;
-
-				g_caps.supported |= m_device.supportsFamily( (MTLGPUFamily)10001 /* MTLGPUFamily_macOS_GPUFamily1_v2 */)
+				
+				g_caps.supported |= m_device.supportsFeatureSet( (MTLFeatureSet)10001 /* MTLFeatureSet_macOS_GPUFamily1_v2 */)
 					? BGFX_CAPS_DRAW_INDIRECT
 					: 0
 					;
@@ -2358,7 +2358,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 					if (NULL != reflection)
 					{
-						processArguments(pso, reflection.vertexBindings, reflection.fragmentBindings);
+						processArguments(pso, reflection.vertexArguments, reflection.fragmentArguments);
 					}
 				}
 
@@ -2405,7 +2405,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 					, MTLPipelineOptionBufferTypeInfo
 					, &reflection
 					);
-				processArguments(pso, reflection.bindings, NULL);
+				processArguments(pso, reflection.arguments, NULL);
 
 				for (uint32_t ii = 0; ii < 3; ++ii)
 				{
@@ -2435,7 +2435,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				m_samplerDescriptor.maxAnisotropy =  (0 != (_flags & (BGFX_SAMPLER_MIN_ANISOTROPIC|BGFX_SAMPLER_MAG_ANISOTROPIC) ) ) ? m_mainFrameBuffer.m_swapChain->m_maxAnisotropy : 1;
 
 				if (m_macOS11Runtime
-				|| [m_device supportsFamily:(MTLGPUFamily)4 /*MTLGPUFamily_iOS_GPUFamily3_v1*/])
+				|| [m_device supportsFeatureSet:(MTLFeatureSet)4 /*MTLFeatureSet_iOS_GPUFamily3_v1*/])
 				{
 					const uint32_t cmpFunc = (_flags&BGFX_SAMPLER_COMPARE_MASK)>>BGFX_SAMPLER_COMPARE_SHIFT;
 					m_samplerDescriptor.compareFunction = 0 == cmpFunc
